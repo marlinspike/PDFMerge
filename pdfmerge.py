@@ -29,16 +29,16 @@ class PDFMergerTool:
         self.output_path = os.path.join(self.folder, self.output)
 
     def merge_pdfs(self):
-        """Merges PDFs from specified folder or a list of URLs/files."""
         pdf_files = self.read_sources_file() if self.sources_file else self.find_pdf_files_in_folder()
         
+        total_files = len(pdf_files)
         writer = PdfWriter()
         
-        for pdf_file in pdf_files:
+        for i, pdf_file in enumerate(pdf_files, start=1):
             try:
                 if pdf_file.startswith("http"):
                     pdf_file = download_file(pdf_file, self.folder)
-                logging.info(f"Processing {pdf_file}")
+                logging.info(f"Processing {i} of {total_files}: {pdf_file}")
                 reader = PdfReader(pdf_file)
                 for page in reader.pages:
                     writer.add_page(page)
@@ -57,17 +57,15 @@ class PDFMergerTool:
             self.check_file_size_and_split()
 
     def read_sources_file(self):
-        """Reads PDF sources (file paths or URLs) from a provided newline-separated file."""
         sources = []
         with open(self.sources_file, 'r') as file:
             for line in file:
                 cleaned_line = line.strip()
-                if cleaned_line:  # Ensure the line is not empty
+                if cleaned_line:
                     sources.append(cleaned_line)
         return sources
 
     def find_pdf_files_in_folder(self):
-        """Finds all PDF files in the specified folder."""
         return glob.glob(os.path.join(self.folder, '*.pdf'))
 
     def check_file_size_and_split(self):
