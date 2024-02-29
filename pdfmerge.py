@@ -3,13 +3,14 @@ import glob
 import argparse
 import logging
 import requests
-from PyPDF2 import PdfMerger, PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter
 from urllib.parse import urlparse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def download_file(url, destination_folder):
+    """Downloads a file from a URL to the specified destination folder."""
     local_filename = os.path.join(destination_folder, urlparse(url).path.split('/')[-1])
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
@@ -33,49 +34,51 @@ class PDFMerger:
             logging.warning("No PDF files found to process.")
             return
         
-        merger = PdfMerger()
+        writer = PdfWriter()
         
         for pdf_file in pdf_files:
             try:
                 logging.info(f"Processing {pdf_file}")
                 if pdf_file.startswith("http"):
                     pdf_file = download_file(pdf_file, self.folder)
-                merger.append(pdf_file)
+                reader = PdfReader(pdf_file)
+                for page in reader.pages:
+                    writer.add_page(page)
             except Exception as e:
                 logging.error(f"Failed to process {pdf_file}: {e}")
         
         try:
             logging.info("Starting to write merged PDF...")
-            merger.write(self.output_path)
-            merger.close()
+            with open(self.output_path, 'wb') as f:
+                writer.write(f)
             logging.info(f"Merged PDF saved to {self.output_path}")
         except Exception as e:
             logging.error(f"Failed to write merged PDF: {e}")
-            return  # Exit the method if the merged PDF wasn't written successfully
-
+        
         if self.max_file_size:
             self.check_file_size_and_split()
 
-
     def read_sources(self):
+        """Reads PDF file paths or URLs from a given sources file."""
         with open(self.sources_file, 'r') as file:
             lines = file.read().splitlines()
         return [line.strip() for line in lines if line.strip()]
 
     def find_pdf_files(self):
+        """Finds PDF files in the specified folder."""
         return glob.glob(os.path.join(self.folder, '*.pdf'))
 
-
     def check_file_size_and_split(self):
+        """Checks the file size of the merged PDF and splits it if it exceeds the max file size."""
         file_size_mb = os.path.getsize(self.output_path) / (1024 * 1024)  # Convert to MB
         if file_size_mb <= self.max_file_size:
             logging.info("No need to split the PDF as it's within the size limit.")
-            return  # File size is within limit, no need to split
+            return
 
         reader = PdfReader(self.output_path)
         total_pages = len(reader.pages)
         pages_per_mb = total_pages / file_size_mb  # Estimate pages per MB
-        
+
         estimated_pages_per_part = int(pages_per_mb * self.max_file_size)
         parts = max(1, total_pages // estimated_pages_per_part)
 
@@ -97,7 +100,6 @@ class PDFMerger:
         # Optionally, remove the original large file
         os.remove(self.output_path)
         logging.info("Original merged PDF removed due to size splitting.")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Merge PDFs from files or URLs and optionally split the merged PDF if it exceeds a specified size.")
