@@ -34,7 +34,7 @@ Navigate to the directory containing the script in a terminal or command prompt.
 To merge PDFs in the current directory:
 
 ```bash
-python pdf_merger.py
+python pdfmerge.py
 ```
 
 ### Custom Output Filename and Directory
@@ -42,7 +42,7 @@ python pdf_merger.py
 Specify a custom name and directory for the output file:
 
 ```bash
-python pdf_merger.py -o my_merged_document.pdf -f /path/to/output/folder
+python pdfmerge.py -o my_merged_document.pdf -f /path/to/output/folder
 ```
 
 ### Merging PDFs from a List
@@ -50,7 +50,7 @@ python pdf_merger.py -o my_merged_document.pdf -f /path/to/output/folder
 To merge PDFs specified in a text file (paths or URLs):
 
 ```bash
-python pdf_merger.py -l path/to/pdf_list.txt
+python pdfmerge.py -l path/to/pdf_list.txt
 ```
 
 ### Specifying Maximum File Size
@@ -58,7 +58,7 @@ python pdf_merger.py -l path/to/pdf_list.txt
 To split the output into smaller files if it exceeds a certain size (in MB):
 
 ```bash
-python pdf_merger.py -s 50
+python pdfmerge.py -s 50
 ```
 
 ## Contributing
