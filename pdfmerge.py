@@ -3,58 +3,79 @@ import glob
 import argparse
 import logging
 import requests
+import tempfile
 from pypdf import PdfReader, PdfWriter
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse, parse_qs
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def download_file(url, destination_folder):
     """Downloads a PDF from a URL to the specified destination folder."""
-    local_filename = os.path.join(destination_folder, urlparse(url).path.split('/')[-1])
-    with requests.get(url, stream=True) as r:
-        r.raise_for_status()
-        with open(local_filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-    logging.info(f"Downloaded {local_filename}")
-    return local_filename
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    # Create a temporary file within the specified directory
+    temp_file = tempfile.NamedTemporaryFile(delete=False, dir=destination_folder, suffix='.pdf')
+    for chunk in response.iter_content(chunk_size=8192):
+        temp_file.write(chunk)
+    temp_file.close()
+    logging.info(f"Downloaded {url} to {temp_file.name}")
+    return temp_file.name
 
 class PDFMergerTool:
     def __init__(self, folder=".", output="merged.pdf", max_file_size=None, sources_file=None):
         self.folder = os.path.abspath(folder)
         self.output = output
-        self.max_file_size = max_file_size  # in MB
+        self.max_file_size = max_file_size
         self.sources_file = sources_file
         self.output_path = os.path.join(self.folder, self.output)
+        self.temp_files = []
+        self.bad_documents = []  # Initialize the bad_documents attribute
 
     def merge_pdfs(self):
-        pdf_files = self.read_sources_file() if self.sources_file else self.find_pdf_files_in_folder()
-        
-        total_files = len(pdf_files)
+        if self.sources_file:
+            with open(self.sources_file, 'r') as f:
+                urls = [line.strip() for line in f.readlines()]
+                for url in urls:
+                    try:
+                        temp_file_path = download_file(url, self.folder)
+                        self.temp_files.append(temp_file_path)
+                    except Exception as e:
+                        logging.error(f"Failed to download or process {url}: {e}")
+                        self.bad_documents.append(url)
+                        continue  # Skip to the next URL
+
         writer = PdfWriter()
-        
-        for i, pdf_file in enumerate(pdf_files, start=1):
+        for temp_file in self.temp_files:
             try:
-                if pdf_file.startswith("http"):
-                    pdf_file = download_file(pdf_file, self.folder)
-                logging.info(f"Processing {i} of {total_files}: {pdf_file}")
-                reader = PdfReader(pdf_file)
+                reader = PdfReader(temp_file)
                 for page in reader.pages:
-                    writer.add_page(page)
+                    try:
+                        writer.add_page(page)
+                    except Exception as e:
+                        logging.error(f"Error processing page from {temp_file}; skipping page: {e}")
+                        # Optionally, mark the whole document as bad and continue to the next document
             except Exception as e:
-                logging.error(f"Failed to process {pdf_file}: {e}")
-        
-        try:
-            logging.info("Starting to write merged PDF...")
-            with open(self.output_path, 'wb') as f:
-                writer.write(f)
+                logging.error(f"Error processing document {temp_file}; skipping document: {e}")
+                self.bad_documents.append(temp_file)
+            finally:
+                # Ensure the temporary file is deleted regardless of the outcome
+                os.remove(temp_file)
+                logging.info(f"Deleted temporary file: {temp_file}")
+
+        if writer.pages:
+            with open(self.output_path, 'wb') as f_out:
+                writer.write(f_out)
             logging.info(f"Merged PDF saved to {self.output_path}")
-        except Exception as e:
-            logging.error(f"Failed to write merged PDF: {e}")
-        
+        else:
+            logging.error("No pages were added to the output PDF.")
+
         if self.max_file_size:
             self.check_file_size_and_split()
+
+        if self.bad_documents:
+            logging.error(f"Bad documents encountered: {self.bad_documents}")
+            # Handle bad_documents as needed, e.g., log them to a file or notify someone
 
     def read_sources_file(self):
         sources = []
