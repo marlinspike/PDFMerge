@@ -9,32 +9,61 @@ import aiohttp
 import asyncio
 from tqdm import tqdm
 import math
+from log_config import setup_logging
+import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+setup_logging()
 
 class OutputStrategy:
     def output(self, content, path):
         raise NotImplementedError
 
 class PdfOutputStrategy(OutputStrategy):
-    def output(self, content, path):
+    """
+    Outputs the processed content into a PDF file.
+
+    This method iterates over the content, which is expected to be a list of tuples containing a PDF name and a page.
+    For each page, it tries to add it to a PDF writer. If an error occurs during this process, it logs the error and skips to the next page.
+    After all pages have been processed, it checks if any pages have been added to the writer. If so, it tries to write the PDF to the specified path.
+    If an error occurs during the write process, it logs the error. If no pages were processed, it logs that no output PDF was created.
+
+    Args:
+        content (list): A list of tuples, each containing a PDF name and a page.
+        path (str): The path where the output PDF should be saved.
+
+    Raises:
+        Exception: If there is an error adding a page to the PDF writer or writing the PDF to disk.
+    """
+    def output(self, content:[], path:str):
         writer = PdfWriter()
         current_pdf = None
         for pdf_name, page_content in content:
             if pdf_name != current_pdf:
                 logging.info(f"Processing PDF: {pdf_name}")
                 current_pdf = pdf_name
-            writer.add_page(page_content)
-        with open(path, 'wb') as out_file:
-            writer.write(out_file)
-        logging.info(f"PDF output saved to {path}")
+            try:
+                writer.add_page(page_content)
+            except Exception as e:
+                logging.error(f"Error processing page from {pdf_name}: {e}. Skipping page.")
+                continue  # Skip to the next page
+
+        # Save the PDF only if pages have been added
+        if len(writer.pages) > 0:
+            try:
+                with open(path, 'wb') as out_file:
+                    writer.write(out_file)
+                logging.info(f"PDF output saved to {path}")
+            except Exception as e:
+                logging.error(f"Failed to save PDF {path}: {e}")
+        else:
+            logging.info("No pages processed. Output PDF not created.")
+
 
 import os
 from tqdm import tqdm
 
 class MarkdownOutputStrategy(OutputStrategy):
-    async def output(self, pdf_paths, markdown_path, max_size_bytes=None):
+    async def output(self, pdf_paths:[], markdown_path:str, max_size_bytes:int=None):
         """
         Outputs extracted text from PDF paths to a markdown file. If the maximum size is specified,
         the output will be split into multiple parts.
@@ -115,7 +144,7 @@ class MarkdownOutputStrategy(OutputStrategy):
             logging.info("No need to split the Markdown file; size is within the limit.")
 
         
-    def process_pdf(self, pdf_path):
+    def process_pdf(self, pdf_path:str):
         """
         Processes a single PDF file, extracting text from each page and formatting it for Markdown.
 
@@ -153,7 +182,7 @@ class PDFMergerTool:
         self.temp_folder = os.path.join(self.folder, "temp")  # Ensure this line is correctly placed
 
     @staticmethod
-    async def download_file(session, url, destination_folder):
+    async def download_file(session:aiohttp.ClientSession, url:str, destination_folder:str):
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36'}
         # Ensure the destination folder exists
         os.makedirs(destination_folder, exist_ok=True)
@@ -223,7 +252,7 @@ class PDFMergerTool:
         else:
             # Merge PDFs and then check file size and potentially split
             content = []
-            for pdf_path in downloaded_pdfs:
+            for pdf_path in tqdm(downloaded_pdfs, desc="Processing PDFs"):
                 if not isinstance(pdf_path, Exception):
                     logging.info(f"Processing PDF: {pdf_path}")
                     try:
@@ -234,12 +263,14 @@ class PDFMergerTool:
                             content.append((os.path.basename(pdf_path), page))
                         logging.info(f"Successfully processed and added pages from {pdf_path}")
                     except Exception as e:
+                        # Log error but avoid stopping the script
                         #logging.error(f"Failed to process PDF {pdf_path}: {e}")
                         self.bad_documents.append(pdf_path)
                     finally:
                         # Clean up: Remove the temporary downloaded PDF file
                         os.remove(pdf_path)
-                        logging.info(f"Deleted temporary file: {pdf_path}")
+                        #logging.info(f"Deleted temporary file: {pdf_path}")
+
 
             if content:
                 pdf_strategy = PdfOutputStrategy()
@@ -248,7 +279,7 @@ class PDFMergerTool:
                 # After successfully merging, check if the merged PDF needs to be split due to size constraints
                 self.check_file_size_and_split()
 
-    def calculate_pages_per_part(self, total_pages, total_pdf_size_bytes):
+    def calculate_pages_per_part(self, total_pagesr, total_pdf_size_bytes):
         """
         Calculates the number of pages each part should contain based on the maximum file size allowed,
         using an estimate of 3500 pages for a 100MB document.
