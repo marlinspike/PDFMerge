@@ -1,29 +1,29 @@
-
 # PDF Merger Tool
 
-This PDF Merger Tool is an enhanced Python script capable of merging PDF files located in a specified directory or listed in a new-line delimited text file. The list can include both file paths and URLs to PDF documents. This tool now features logging for better tracking of its operations, especially useful when processing large files or numerous documents.
+This PDF Merger Tool is a comprehensive Python utility designed for merging PDF files either from a specified directory or listed in a newline-separated text file. It supports merging PDFs directly from URLs, making it a versatile tool for various PDF processing needs. It also supports merging downloaded PDFs into Markdown files for plain-text lookups. You can specify the Max file size of output files, and the tool will automatically span multiple PDFs or Markdown files, within the specified limit.
 
 ## Features
 
-- **Merge Multiple PDFs:** Combine all PDF documents from a directory or a list into one.
-- **Download and Merge PDFs from URLs:** Automatically download PDFs from provided URLs and merge them.
-- **Custom Output Directory and Filename:** Specify the output directory and filename for the merged PDF.
-- **File Size Check and Split:** If the merged PDF exceeds a specified size, it will be split into smaller parts.
-- **Logging:** Detailed logging of the tool's operations, including file processing starts and ends.
+- **Merge Multiple PDFs:** Seamlessly combine PDF documents from a directory or a list into a single PDF or Markdown file.
+- **Download and Merge PDFs from URLs:** Automatically fetches and merges PDFs from given URLs, so you can process any number of PDFs at one time.
+- **File Size Check and Split:** Automatically splits the merged PDF into smaller parts if it exceeds a predefined size limit.
+- **Custom Output Directory and Filename:** Users can define the output directory and filename for the merged PDF.
+- **Markdown Reporting:** Optionally generates a Markdown report of the processed documents, including a list of any documents that could not be processed.
 
 ## Requirements
 
 - Python 3.x
 - PyPDF2
 - Requests
+- Fitz (PyMuPDF)
 
 ## Installation
 
-Ensure Python 3.x is installed on your system. Then, install the required packages:
+First, ensure Python 3.x is installed on your system. Then, install the necessary dependencies:
 
 ```bash
 pip install -r requirements.txt
-```
+
 
 ## Usage
 
@@ -50,7 +50,7 @@ python pdfmerge.py -o my_merged_document.pdf -f /path/to/output/folder
 To merge PDFs specified in a text file (paths or URLs):
 
 ```bash
-python pdfmerge.py -l path/to/pdf_list.txt
+python pdfmerge.py -l path/to/pdf_list.md
 ```
 
 ### Specifying Maximum File Size
@@ -59,6 +59,13 @@ To split the output into smaller files if it exceeds a certain size (in MB):
 
 ```bash
 python pdfmerge.py -s 50
+```
+
+### Markdown output
+
+Generate a Markdown document containing all the data from the downloaded PDFs:
+```bash
+python pdfmerge.py -m
 ```
 
 ## Contributing
