@@ -136,6 +136,7 @@ class MarkdownOutputStrategy(OutputStrategy):
             #logging.info(f"Successfully processed {pdf_path} for Markdown output")
         except Exception as e:
             #logging.error(f"Failed to process PDF {pdf_path}: {e}")
+            pass
         return text
 
 
