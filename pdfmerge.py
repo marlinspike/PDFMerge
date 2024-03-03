@@ -133,9 +133,9 @@ class MarkdownOutputStrategy(OutputStrategy):
                 page = doc.load_page(page_num)
                 text += f"## Document: {os.path.basename(pdf_path)}, Page: {page_num+1}\n\n{page.get_text()}\n\n"
             doc.close()
-            logging.info(f"Successfully processed {pdf_path} for Markdown output")
+            #logging.info(f"Successfully processed {pdf_path} for Markdown output")
         except Exception as e:
-            logging.error(f"Failed to process PDF {pdf_path}: {e}")
+            #logging.error(f"Failed to process PDF {pdf_path}: {e}")
         return text
 
 
@@ -233,7 +233,7 @@ class PDFMergerTool:
                             content.append((os.path.basename(pdf_path), page))
                         logging.info(f"Successfully processed and added pages from {pdf_path}")
                     except Exception as e:
-                        logging.error(f"Failed to process PDF {pdf_path}: {e}")
+                        #logging.error(f"Failed to process PDF {pdf_path}: {e}")
                         self.bad_documents.append(pdf_path)
                     finally:
                         # Clean up: Remove the temporary downloaded PDF file
